@@ -25,7 +25,30 @@ def login():
 
 @app.route('/authorize')
 def authorize():
-    return "Redirect page"
+    sp_oauth = create_spotify_oauth()
+    session.clear()
+
+    code = request.args.get('code')
+    token_info = sp_oauth.get_access_token(code)
+    session["token_info"] = token_info
+
+    sp = spotipy.Spotify(auth=token_info["access_token"])
+    user = sp.current_user()
+    user_name = user["display_name"]
+
+    user_liked_songs = sp.current_user_saved_tracks(limit=50, offset=0)["items"]
+
+    response_str = ""
+    response_str += f"<h1>Welcome, {user_name}</h1>\n"
+    response_str += "<p>Liked songs:</p>"
+    response_str += "<p>"
+    for liked_song in user_liked_songs:
+        song_name = str(liked_song["track"]["name"])
+        artists = ", ".join([a["name"] for a in liked_song["track"]["artists"]])
+        response_str += f'{song_name} - {artists}</br>'
+    response_str += "</p>"
+
+    return response_str
 
 
 @app.route('/getTracks')
@@ -43,4 +66,4 @@ def create_spotify_oauth():
 
 
 if __name__ == "__main__":
-    app.run()
+    app.run(debug=True)
