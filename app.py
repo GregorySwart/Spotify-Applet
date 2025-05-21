@@ -18,17 +18,28 @@ app.config["SESSION_COOKIE_NAME"] = "My Cookie"
 
 @app.route('/')
 def login():
-    return "Homepage"
+    sp_oauth = create_spotify_oauth()
+    auth_url = sp_oauth.get_authorize_url()
+    return redirect(auth_url)
 
 
-@app.route('/redirect')
-def redirect():
+@app.route('/authorize')
+def authorize():
     return "Redirect page"
 
 
 @app.route('/getTracks')
 def get_tracks():
     return "Super cool playlist"
+
+
+def create_spotify_oauth():
+    return SpotifyOAuth(
+        client_id=client_id,
+        client_secret=client_secret,
+        redirect_uri=url_for('authorize', _external=True),
+        scope="user-library-read"
+    )
 
 
 if __name__ == "__main__":
