@@ -1,9 +1,10 @@
-from flask import Flask, request, url_for, session, redirect
-import spotipy
-from spotipy.oauth2 import SpotifyOAuth
-
 import os
+import pathlib
+
+import spotipy
 from dotenv import load_dotenv
+from flask import Flask, request, url_for, session, redirect
+from spotipy.oauth2 import SpotifyOAuth
 
 load_dotenv()
 
@@ -29,7 +30,7 @@ def authorize():
     session.clear()
 
     code = request.args.get('code')
-    token_info = sp_oauth.get_access_token(code)
+    token_info = sp_oauth.get_access_token(code, check_cache=False)
     session["token_info"] = token_info
 
     sp = spotipy.Spotify(auth=token_info["access_token"])
@@ -56,13 +57,31 @@ def get_tracks():
     return "Super cool playlist"
 
 
+@app.route('/logout')
+def logout():
+    for key in list(session.keys()):
+        session.pop(key)
+
+    delete_cache()
+    return redirect('https://open.spotify.com/logout')  # Hacky way to log user out - TODO disable spotipy caching
+
+
 def create_spotify_oauth():
-    return SpotifyOAuth(
+    sp_oauth = SpotifyOAuth(
         client_id=client_id,
         client_secret=client_secret,
         redirect_uri=url_for('authorize', _external=True),
-        scope="user-library-read"
+        scope="user-library-read",
+        cache_path=None
     )
+    delete_cache()
+    return sp_oauth
+
+
+def delete_cache():
+    cache_path = f"{os.getcwd()}\\.cache"
+    cache_file = pathlib.Path(cache_path)
+    pathlib.Path.unlink(cache_file, missing_ok=True)
 
 
 if __name__ == "__main__":
