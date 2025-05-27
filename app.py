@@ -1,10 +1,13 @@
 import os
 import pathlib
+import time
 
 import spotipy
 from dotenv import load_dotenv
 from flask import Flask, request, url_for, session, redirect
 from spotipy.oauth2 import SpotifyOAuth
+
+from utils import get_artist_ids_from_track
 
 load_dotenv()
 
@@ -26,6 +29,8 @@ def login():
 
 @app.route('/authorize')
 def authorize():
+    # TODO: Get ALL the songs of a user
+
     sp_oauth = create_spotify_oauth()
     session.clear()
 
@@ -37,16 +42,39 @@ def authorize():
     user = sp.current_user()
     user_name = user["display_name"]
 
-    user_liked_songs = sp.current_user_saved_tracks(limit=50, offset=0)["items"]
+    all_liked_songs = []
+    tries = 0
+    offset = 0
+    limit = 100
+    done = False
+    print("Getting all liked songs...")
+    while not done:
+        liked_songs_current_batch = sp.current_user_saved_tracks(limit=50, offset=offset)["items"]
+        print(f"Received batch with {len(liked_songs_current_batch)} songs...")
+        all_liked_songs.extend(liked_songs_current_batch)
+        if len(liked_songs_current_batch) < 50 or len(all_liked_songs) >= limit or tries >= 200:
+            done = True
+        offset += 50
+        tries += 1
 
     response_str = ""
     response_str += f"<h1>Welcome, {user_name}</h1>\n"
     response_str += "<p>Liked songs:</p>"
     response_str += "<p>"
-    for liked_song in user_liked_songs:
+    for i, liked_song in enumerate(all_liked_songs):
+        print(f"Processing song {i + 1}/{len(all_liked_songs)}")
+
         song_name = str(liked_song["track"]["name"])
-        artists = ", ".join([a["name"] for a in liked_song["track"]["artists"]])
-        response_str += f'{song_name} - {artists}</br>'
+        response_str += f'{song_name} - '
+
+        song_artist_ids = get_artist_ids_from_track(liked_song["track"])
+        artists = sp.artists(song_artist_ids)["artists"]
+
+        for artist in artists:
+            response_str += f'{artist["name"]} '
+            response_str += f'({', '.join([g for g in artist["genres"]])}) '
+
+        response_str += "</br>"
     response_str += "</p>"
 
     return response_str
