@@ -1,6 +1,5 @@
 import os
 import pathlib
-import time
 
 import spotipy
 from dotenv import load_dotenv
@@ -29,8 +28,6 @@ def login():
 
 @app.route('/authorize')
 def authorize():
-    # TODO: Get ALL the songs of a user
-
     sp_oauth = create_spotify_oauth()
     session.clear()
 
